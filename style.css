@@ -1,210 +1,290 @@
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
+
+"use strict";
+
+// ============================================
+// 1. TRAINED MODEL PARAMETERS
+// ============================================
+
+const scalerParameters = {
+    mean: [56.421017, 50.032588],
+    scale: [28.75903412296232, 29.060527972186875]
+};
+
+// Feature order:
+// Annual Income (thousands of dollars), Spending Score
+
+const centroids = [
+    [1.0193671404184244, 1.0846926029079549],
+    [-1.0367069737269508, -0.9776087296380439],
+    [1.0898081373335349, -1.088057719534682],
+    [-0.01771182937007604, -0.00368834556282791],
+    [-1.0030081283343428, 0.9817873103481094]
+];
+
+// ============================================
+// 2. CUSTOMER SEGMENT DESCRIPTIONS
+// Descriptions are inferred from the centroids.
+// ============================================
+
+const clusterMapping = {
+    0: {
+        segment: "⭐ Cluster 1: High-Income, High-Spending Customer",
+        strategy: "Offer VIP rewards, personalized recommendations, exclusive product access, and loyalty benefits.",
+        color: "#ca8a04"
+    },
+
+    1: {
+        segment: "🟡 Cluster 2: Low-Income, Low-Spending Customer",
+        strategy: "Recommend affordable products, budget bundles, and value-for-money promotions.",
+        color: "#9333ea"
+    },
+
+    2: {
+        segment: "🔵 Cluster 3: High-Income, Low-Spending Customer",
+        strategy: "Build confidence with quality information, warranties, testimonials, and relevant offers.",
+        color: "#2563eb"
+    },
+
+    3: {
+        segment: "🟢 Cluster 4: Average-Income, Average-Spending Customer",
+        strategy: "Use seasonal promotions, regular updates, and loyalty rewards to encourage repeat purchases.",
+        color: "#059669"
+    },
+
+    4: {
+        segment: "🔴 Cluster 5: Low-Income, High-Spending Customer",
+        strategy: "Offer relevant discounts, affordable alternatives, and budget-friendly promotions.",
+        color: "#dc2626"
+    }
+};
+
+// ============================================
+// 3. GET HTML ELEMENTS
+// ============================================
+
+function getElement(id) {
+    return document.getElementById(id);
 }
 
-body {
-    font-family: 'Poppins', sans-serif;
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    color: #333;
-    min-height: 100vh;
-    padding: 2rem 1rem;
-}
+function updateScoreValue() {
+    const slider = getElement("spending-score");
+    const scoreValue = getElement("score-value");
 
-.container {
-    max-width: 1000px;
-    margin: 0 auto;
-}
-
-header {
-    text-align: center;
-    margin-bottom: 2.5rem;
-}
-
-header h1 {
-    font-size: 2.5rem;
-    color: #1a2a3a;
-    margin-bottom: 0.5rem;
-    font-weight: 700;
-}
-
-.subtitle {
-    font-size: 1.1rem;
-    color: #5a6a7a;
-}
-
-.main-content {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
-}
-
-@media (max-width: 768px) {
-    .main-content {
-        grid-template-columns: 1fr;
+    if (slider && scoreValue) {
+        scoreValue.textContent = slider.value;
     }
 }
 
-.predictor-card, .result-card {
-    background: #ffffff;
-    border-radius: 12px;
-    padding: 2rem;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+// ============================================
+// 4. PREDICT CUSTOMER SEGMENT
+// ============================================
+
+function predictSegment(event) {
+    event.preventDefault();
+
+    const incomeInput = getElement("income");
+    const spendingInput = getElement("spending-score");
+
+    if (!incomeInput || !spendingInput) {
+        console.error("Income or spending input is missing.");
+        alert("Website error: please check the input IDs in index.html.");
+        return;
+    }
+
+    const incomeText = incomeInput.value.trim();
+    const income = Number(incomeText);
+    const spending = Number(spendingInput.value);
+
+    // Validate income.
+    if (
+        incomeText === "" ||
+        !Number.isFinite(income) ||
+        income < 0
+    ) {
+        alert("Please enter a valid, non-negative annual income.");
+        incomeInput.focus();
+        return;
+    }
+
+    // Validate spending score.
+    if (
+        !Number.isFinite(spending) ||
+        spending < 1 ||
+        spending > 100
+    ) {
+        alert("Spending Score must be between 1 and 100.");
+        return;
+    }
+
+    // Convert annual income from dollars to thousands of dollars.
+    const incomeK = income / 1000;
+
+    // Apply the supplied StandardScaler parameters.
+    const scaledIncome =
+        (incomeK - scalerParameters.mean[0]) /
+        scalerParameters.scale[0];
+
+    const scaledSpending =
+        (spending - scalerParameters.mean[1]) /
+        scalerParameters.scale[1];
+
+    // Calculate Euclidean distance from each centroid.
+    const distances = centroids.map((centroid, index) => {
+        const dx = scaledIncome - centroid[0];
+        const dy = scaledSpending - centroid[1];
+
+        return {
+            index: index,
+            distance: Math.sqrt(dx * dx + dy * dy)
+        };
+    });
+
+    // Select the nearest centroid.
+    let predictedCluster = 0;
+
+    for (let i = 1; i < distances.length; i++) {
+        if (distances[i].distance < distances[predictedCluster].distance) {
+            predictedCluster = i;
+        }
+    }
+
+    const result = clusterMapping[predictedCluster];
+
+    // ========================================
+    // 5. DISPLAY RESULTS
+    // ========================================
+
+    const initialState = getElement("initial-state");
+    const resultState = getElement("result-state");
+    const resultSegment = getElement("result-segment");
+    const resultStrategy = getElement("result-strategy");
+    const distancesList = getElement("distances-list");
+
+    if (!resultSegment || !resultStrategy || !distancesList) {
+        console.error("One or more result elements are missing in index.html.");
+        alert("Results panel error: please check the output element IDs.");
+        return;
+    }
+
+    if (initialState) {
+        initialState.classList.add("hidden");
+    }
+
+    if (resultState) {
+        resultState.classList.remove("hidden");
+    }
+
+    resultSegment.textContent = result.segment;
+    resultSegment.style.backgroundColor = result.color;
+    resultSegment.style.color = "#ffffff";
+
+    resultStrategy.textContent = result.strategy;
+
+    // Show all centroid distances and highlight the nearest.
+    distancesList.replaceChildren();
+
+    distances.forEach((item, index) => {
+        const li = document.createElement("li");
+        const value = document.createElement("span");
+
+        li.appendChild(
+            document.createTextNode(`Cluster ${index + 1}: `)
+        );
+
+        value.textContent = item.distance.toFixed(4);
+        value.style.color =
+            index === predictedCluster ? "#2563eb" : "#64748b";
+
+        if (index === predictedCluster) {
+            value.style.fontWeight = "700";
+        }
+
+        li.appendChild(value);
+        distancesList.appendChild(li);
+    });
+
+    console.log("Prediction completed:", {
+        annualIncome: income,
+        incomeInThousands: incomeK,
+        spendingScore: spending,
+        scaledIncome: scaledIncome,
+        scaledSpending: scaledSpending,
+        predictedCluster: predictedCluster + 1,
+        segment: result.segment,
+        distances: distances.map((item, index) => ({
+            cluster: index + 1,
+            distance: item.distance.toFixed(4)
+        }))
+    });
 }
 
-h2 {
-    font-size: 1.3rem;
-    color: #1a2a3a;
-    margin-bottom: 1.5rem;
-    border-bottom: 2px solid #eaeaea;
-    padding-bottom: 0.5rem;
+// ============================================
+// 6. CLEAR INPUTS AND RESULTS
+// ============================================
+
+function clearFields(event) {
+    if (event) {
+        event.preventDefault();
+    }
+
+    const incomeInput = getElement("income");
+    const spendingInput = getElement("spending-score");
+    const initialState = getElement("initial-state");
+    const resultState = getElement("result-state");
+    const distancesList = getElement("distances-list");
+
+    if (incomeInput) {
+        incomeInput.value = "";
+    }
+
+    if (spendingInput) {
+        spendingInput.value = "50";
+    }
+
+    updateScoreValue();
+
+    if (initialState) {
+        initialState.classList.remove("hidden");
+    }
+
+    if (resultState) {
+        resultState.classList.add("hidden");
+    }
+
+    if (distancesList) {
+        distancesList.replaceChildren();
+    }
 }
 
-.input-group {
-    margin-bottom: 1.5rem;
+// ============================================
+// 7. INITIALIZE EVENT LISTENERS
+// ============================================
+
+function initializeDashboard() {
+    const form = getElement("predictor-form");
+    const clearButton = getElement("clear-btn");
+    const slider = getElement("spending-score");
+
+    if (form) {
+        form.addEventListener("submit", predictSegment);
+    } else {
+        console.error("Form with ID predictor-form was not found.");
+    }
+
+    if (clearButton) {
+        clearButton.addEventListener("click", clearFields);
+    }
+
+    if (slider) {
+        slider.addEventListener("input", updateScoreValue);
+        updateScoreValue();
+    }
+
+    console.log("Customer Segmentation dashboard loaded successfully.");
 }
 
-label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-    color: #4a5a6a;
-}
-
-input[type="number"] {
-    width: 100%;
-    padding: 0.8rem;
-    border: 1.5px solid #d1d5db;
-    border-radius: 6px;
-    font-size: 1rem;
-    outline: none;
-    transition: border-color 0.3s;
-}
-
-input[type="number"]:focus {
-    border-color: #4f46e5;
-}
-
-.helper-text {
-    font-size: 0.8rem;
-    color: #718096;
-    display: block;
-    margin-top: 0.25rem;
-}
-
-.slider-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-#score-value {
-    background: #4f46e5;
-    color: white;
-    padding: 0.2rem 0.6rem;
-    border-radius: 4px;
-    font-size: 0.9rem;
-    font-weight: 600;
-}
-
-input[type="range"] {
-    width: 100%;
-    margin-top: 0.5rem;
-}
-
-.button-group {
-    display: flex;
-    gap: 1rem;
-}
-
-button {
-    flex: 1;
-    padding: 0.8rem;
-    border: none;
-    border-radius: 6px;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.btn-primary {
-    background-color: #4f46e5;
-    color: white;
-}
-
-.btn-primary:hover {
-    background-color: #4338ca;
-}
-
-.btn-secondary {
-    background-color: #edf2f7;
-    color: #4a5568;
-}
-
-.btn-secondary:hover {
-    background-color: #e2e8f0;
-}
-
-.initial-state {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    min-height: 200px;
-    text-align: center;
-    color: #718096;
-}
-
-.hidden {
-    display: none !important;
-}
-
-.result-badge {
-    font-size: 1.2rem;
-    font-weight: 700;
-    padding: 1rem;
-    border-radius: 8px;
-    text-align: center;
-    margin-bottom: 1.5rem;
-    color: white;
-    background: #4f46e5;
-}
-
-.result-details {
-    background-color: #f8fafc;
-    border-left: 4px solid #4f46e5;
-    padding: 1rem;
-    border-radius: 0 8px 8px 0;
-    margin-bottom: 1.5rem;
-}
-
-.result-details h3 {
-    font-size: 1rem;
-    margin-bottom: 0.5rem;
-    color: #1e293b;
-}
-
-.debug-info {
-    background-color: #1e293b;
-    color: #f8fafc;
-    padding: 1rem;
-    border-radius: 8px;
-    font-family: monospace;
-    font-size: 0.85rem;
-}
-
-.debug-info h4 {
-    margin-bottom: 0.5rem;
-    color: #38bdf8;
-}
-
-.debug-info ul {
-    list-style-type: none;
-    padding-left: 0;
-}
-
-.debug-info li {
-    margin-bottom: 0.25rem;
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initializeDashboard);
+} else {
+    initializeDashboard();
 }
