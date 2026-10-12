@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Segmentation Predictor</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛒 AI Customer Segmentation System</h1>
+            <p class="subtitle">1-Million Row Scale Production Model Predictor</p>
+        </header>
+
+        <main class="main-content">
+            <section class="predictor-card">
+                <h2>📊 Customer Parameter Metrics</h2>
+                <form id="predictor-form">
+                    <div class="input-group">
+                        <label for="income">Annual Income ($)</label>
+                        <input type="number" id="income" name="income" placeholder="e.g. 60000" required min="0">
+                        <small class="helper-text">Input raw value in standard dollars (e.g. 60000 matches $60k)</small>
+                    </div>
+
+                    <div class="input-group">
+                        <div class="slider-header">
+                            <label for="spending-score">Spending Score (1-100)</label>
+                            <span id="score-value">50</span>
+                        </div>
+                        <input type="range" id="spending-score" name="spending-score" min="1" max="100" value="50">
+                    </div>
+
+                    <div class="button-group">
+                        <button type="submit" class="btn-primary">Predict Segment</button>
+                        <button type="button" id="clear-btn" class="btn-secondary">Clear Fields</button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="result-card" id="result-section">
+                <h2>🎯 Analysis Output</h2>
+                <div class="initial-state" id="initial-state">
+                    <p>Enter the metrics on the left panel and click "Predict Segment" to view the machine learning clustering analysis.</p>
+                </div>
+                <div class="result-state hidden" id="result-state">
+                    <div class="result-badge" id="result-segment">Customer Segment</div>
+                    <div class="result-details">
+                        <h3>💡 Recommended Business Strategy</h3>
+                        <p id="result-strategy"></p>
+                    </div>
+                    <div class="debug-info">
+                        <h4>Mathematical Diagnostics</h4>
+                        <p>Computed Euclidean Distances to Centroids:</p>
+                        <ul id="distances-list"></ul>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
